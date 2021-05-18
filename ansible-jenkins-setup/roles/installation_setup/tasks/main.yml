@@ -1,0 +1,15 @@
+---
+- name: copy nginx default
+  template:
+    src: "{{ srcpath }}"
+    dest: "{{ destpath }}"
+    owner: ubuntu
+    group: ubuntu
+    mode: '0666'
+  notify: restart nginx
+
+- name: Create certbot certificate
+  command: certbot --nginx -d "{{ domain }}" -m "{{ email }}" --agree-tos --redirect --eff-email
+  when: 1 == 1
+  notify: restart nginx
+

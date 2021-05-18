@@ -1,0 +1,8 @@
+---
+# aws_region: us-east-1
+# aws_profile: root
+# aws_secret_key: csye7125
+# srcpath: /Users/darpitchaudhary/Desktop/Advance_Cloud/infra-jenkins/default
+# destpath: /etc/nginx/sites-available/default
+# domain: jenkins1.darpitchaudhary.me
+# email: chaudhary.da@northeastern.edu

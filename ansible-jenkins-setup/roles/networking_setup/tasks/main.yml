@@ -1,0 +1,137 @@
+---
+- name: Create VPC for Jenkins
+  ec2_vpc_net:
+    state: present
+    region: "{{ aws_region }}"
+    name: "{{ vpc_name }}"
+    cidr_block: "{{ vpc_cidr }}"
+    dns_hostnames: yes
+    dns_support: yes
+    multi_ok: no
+    tenancy: default
+    profile: "{{ aws_profile }}"
+    tags:
+      Name: "jenkins"
+  register: jenkins_vpc
+
+- name: Create Internet Gateway
+  ec2_vpc_igw:
+    state: present
+    profile: "{{ aws_profile }}"
+    region: "{{ aws_region }}"
+    vpc_id: "{{ jenkins_vpc.vpc.id }}"
+    tags:
+      Name: "jenkins_internet_gateway"
+  register: jenkins_igw
+
+- name: Create Subnet_1 for Jenkins VPC
+  ec2_vpc_subnet:
+    state: present
+    region: "{{ aws_region }}"
+    profile: "{{ aws_profile }}"
+    az: "{{ aws_region }}a"
+    cidr: "{{ subnet1_cidr }}"
+    vpc_id: "{{ jenkins_vpc.vpc.id }}"
+    tags:
+      Name: "subnet1_jenkins"
+    map_public: yes
+  register: subnet1
+
+- name: Create Subnet_2 for Jenkins VPC
+  ec2_vpc_subnet:
+    state: present
+    region: "{{ aws_region }}"
+    profile: "{{  aws_profile }}"
+    az: "{{ aws_region }}b"
+    cidr: "{{ subnet2_cidr }}"
+    vpc_id: "{{ jenkins_vpc.vpc.id }}"
+    tags:
+      Name: "subnet2_jenkins"
+    map_public: yes
+  register: subnet2
+
+- name: Create Route Table
+  ec2_vpc_route_table:
+    region: "{{ aws_region }}"
+    profile: "{{ aws_profile }}"
+    vpc_id: "{{ jenkins_vpc.vpc.id }}"
+    tags:
+      Name: "{{ route_tbl_name }}"
+    subnets:
+      - "{{ subnet1.subnet.id }}"
+      - "{{ subnet2.subnet.id }}"
+    routes:
+      - dest: 0.0.0.0/0
+        gateway_id: "{{ jenkins_igw.gateway_id }}"
+
+- name: "Create VPC security groups"
+  ec2_group:
+    state: present
+    profile: "{{ aws_profile }}"
+    region: "{{ aws_region }}"
+    vpc_id: "{{ jenkins_vpc.vpc.id }}"
+    name: "{{ sec_gr_name }}"
+    description: "jenkins security group for {{ jenkins_vpc.vpc.id }}"
+    rules:
+      - proto: tcp
+        from_port: 22
+        to_port: 22
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 8080
+        to_port: 8080
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 80
+        to_port: 80
+        cidr_ip: 0.0.0.0/0
+      - proto: tcp
+        from_port: 443
+        to_port: 443
+        cidr_ip: 0.0.0.0/0
+  register: jenkins_sg
+
+- name: Launch instance
+  ec2_instance:
+    state: present
+    profile: "{{ aws_profile }}"
+    key_name: "{{ aws_secret_key }}"
+    security_group: "{{ sec_gr_name }}"
+    instance_type: "{{ instance_type }}"
+    image_id: "{{ image }}"
+    wait: yes
+    tags:
+      app: jenkins
+    region: "{{ aws_region }}"
+    vpc_subnet_id: "{{ subnet1.subnet.id }}"
+  register: ec2
+
+- name: Allocating elastic IP to ec2 instance
+  ec2_eip:
+    profile: "{{ aws_profile }}"
+    in_vpc: yes
+    tag_name: "{{ eip_tag_name }}"
+    tag_value: "{{ eip_tag_value }}"
+    reuse_existing_ip_allowed: yes
+    state: present
+    region: "{{ aws_region }}"
+    device_id: "{{ ec2.instance_ids[0] }}"
+  register: elastic_ip
+- debug: var=elastic_ip.public_ip
+
+- name: Attach route53 ip with elastic_ip
+  route53:
+    profile: "{{ aws_profile }}"
+    state: present
+    zone: "{{ host_zone }}"
+    record: "{{ jenkins_domain_name }}"
+    type: A
+    ttl: 60
+    value: "{{ elastic_ip.public_ip }}"
+    wait: yes
+    overwrite: yes
+  register: route53
+- debug: var=route53
+
+
+

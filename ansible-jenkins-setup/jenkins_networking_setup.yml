@@ -1,0 +1,78 @@
+---
+- name: "Setup AWS Networking"
+  hosts: localhost
+  gather_facts: no
+  vars_prompt:
+
+    - name: jenkins_domain_name
+      prompt: "Please enter jenkins subdomain name"
+      private: no
+
+    - name: image
+      prompt: "Please enter your ami id"
+      private: no
+
+    - name: aws_secret_key
+      prompt: "Please enter your private key file"
+      private: no
+
+    - name: host_zone
+      prompt: "Please enter your host_zone"
+      private: no
+
+    - name: elastic_ip
+      prompt: "Please enter your elastic_ip"
+      private: no
+
+  roles:
+  - networking_setup
+
+- name: "Setup Jenkins Installation"
+  hosts: jenkins_server
+  become: yes
+  remote_user: admin
+  gather_facts: yes
+  vars_prompt:
+
+    - name: domain
+      prompt: "Please enter jenkins subdomain name"
+      private: no
+
+    - name: email
+      prompt: "Please enter your email"
+      private: no
+
+    - name: aws_secret_key
+      prompt: "Please enter your private key file"
+      private: no
+
+    - name: srcpath
+      prompt: "Please enter source path of default file"
+      private: no
+
+    - name: destpath
+      prompt: "Please enter destination path of default file"
+      private: no
+
+    - name: elastic_ip
+      prompt: "Please enter your elastic_ip"
+      private: no
+
+    - name: aws_region
+      prompt: "Please enter your aws region"
+      private: no
+
+    - name: aws_profile
+      prompt: "Please enter your aws_profile"
+      private: no
+
+  roles:
+  - installation_setup
+  handlers:
+  - name: restart nginx
+    service:
+      name: nginx
+      state: restarted
+
+
+

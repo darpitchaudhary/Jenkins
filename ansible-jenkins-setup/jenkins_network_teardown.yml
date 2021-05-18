@@ -1,0 +1,10 @@
+---
+- name: "Setup AWS Networking"
+  hosts: localhost
+  gather_facts: yes
+  vars:
+    ec2_tags:
+      key: "{{ Name }}"
+      value: "{{ tagValue }}"
+  roles:
+  - networking_teardown
